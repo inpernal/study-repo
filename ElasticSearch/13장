@@ -1,0 +1,128 @@
+## 13장 클러스터 성능 측정
+
+> 이번 장에서는 엘라스틱서치 클러스터의 부하 테스트를 어떻게 진행하고 결과 데이터를 바탕으로 어떻게 시스템의 성능을 측정하는지 알아보겠다.
+<br>
+
+### 13.1 엘라스틱서치를 위한 벤치마크 툴
+
+- Rally : 클러스터 성능 측정 도구 (엘라스틱서치 5.0 이후)
+
+<br>
+
+#### 13.1.1 루씬 벤치마킹 유틸리티
+
+- Luceneutil(Lucene benchmarking utilities) : 루씬에서 성능 측정을 위해 제공되는 벤치마크 유틸리티 
+
+  <B>by 마이클 맥캔들리스</B>
+
+- 벤치마킹 결과 중 대표적인 지표들
+
+  - 색인 성능 측정(Indexing)
+    - Indexing throughput: 일반적인 문서 색인 처리량
+    - Analyzers throughput: 분석기를 거치는 문서 색인 처리량
+    - Near-real-time refresh latency: 세그먼트 Refresh 작업 처리 시 지연시간
+  - Boolean 쿼리 성능 측정
+    - +high-freq +high-freq
+    - +high-freq +medium-freq
+    - high-freq high-freq
+    - high-freq medium-freq
+    - +high-freq +(medium-freq medium-freq)
+    - +medium-freq +(high-freq high-freq)
+  - Proximity 쿼리 성능 측정
+    - Exact phrase: Phrase 쿼리 성능 측정
+    - Sloppy (~4) phrase: Slop 값을 4 이하로 설정하고 성능 측정
+    - Span near (~10): Slop 값을 10이하로 설정하고 성능 측정
+  - Faceting 성능 측정
+    - Term query + date hierarchy
+    - All dates hierarchy
+    - All months
+    - All months (doc values)
+    - All dayOfYear
+    - All dayOfYear (doc values)
+  - Term 쿼리를 이용한 정렬 성능 측정
+    - Date/time(long, high cardinality): 날짜 타입의 텀 쿼리로 정렬
+    - Title(string, high cardinality): 긴 문자열 타입의 텀 쿼리로 정렬
+    - Month(string, low cardinality): 짧은 문자열 타입의 텀 쿼리로 정렬
+    - Day of year(int, medium cardinality): 숫자 타입의 텀 쿼리로 정렬
+
+  <br>
+
+#### 13.1.2 엘라스틱서치 랠리
+
+- 엘라스틱 서치 클러스터를 단순히 물리적으로 볼 경우 여러 샤드의 모임이라고 할 수 있다
+- 각 샤드는 하나의 완벽한 루씬 인스턴스
+- <B>But</B>, 클러스터는 네트워크 작업이 많고, 분산 쿼리가 항상 동반되기 때문에 측정 결과를 모아서 전체 성능을 측정하는 것은 무리가 있음
+
+<br>
+
+#### 랠리(Rally)
+
+- 엘라스틱서치를 위한 벤치마킹 프레임워크
+- 공식 홈페이지: https://github.com/elastic/rally
+- 색인 처리량, GC 수행시간 등을 측정 => 결과를 실시간으로 벤치마크 사이트를 통해 제공
+
+<br>
+
+### 13.2 랠리를 이용한 클러스터 부하 테스트
+
+#### 13.2.1 랠리 설치
+
+- 책 참고:)
+
+  <br>
+
+#### 13.2.2 랠리 Track 옵션
+
+- 랠리는 다양한 종류의 트랙(Track)을 제공
+- <B>트랙?</B> 부하 테스트를 진행할 때 사용할 데이터
+- 트랙 조회하는 법: `$ esrally list tracks`
+
+<br>
+
+#### 13.2.3 랠리 Car 옵션
+
+- 카(Car): 트랙 위에서 실제로 달리게 될 경주용 자동차라고 생각
+- 트랙 옵션 = 부하 테스트에 사용할 색인 데이터
+- 카 옵션 = 부하 테스트를 진행할 엘라스틱 서치 노드
+- 카 조회하는 법: `$ esrally list cars`
+
+- Type: `car` / `mixin`
+  - `car`: 선택할 엘라스틱서치 서버
+  - `mixin`: 카에 섞어 넣을 첨가제(옵션)
+
+<br>
+
+#### 13.2.4 레이스 시작하기
+
+1. 부하 테스트에 필요한 색인 데이터와 엘라스틱서치를 내려받음
+
+2. 부하 테스트 실행
+
+3. 결과 보고서 생성
+4. 공통 통계/ 단위 업무별 통계
+   - 공통 통계
+     - 전체 작업에 대한 결과를 바탕으로 한 통계
+     - 여기서 제공되는 지표는 클러스터의 평균적인 성능을 나타내는 지표
+   - 단위 업무별 통계
+     - 엘라스틱서치의 많은 기능들에 대한 단위 업무별 통계
+
+<br>
+
+#### 13.2.5 토너먼트 결과 비교하기
+
+- 랠리의 compare 기능
+
+  ex ) `esrally compare --baseline=20180515T111712Z --contender=20180516T060254Z`
+
+<br>
+
+### 13.3 키바나(Kibana)를 이용한 성능 모니터링
+
+- 엘라스틱서치 6.0 이상, 같은 버전의 키바나를 설치 -> 모니터링 기능 활성화할 수 있음
+- 키바나의 Monitoring 탭 =>  대표적인 성능 지표들 제공(주기적으로 확인하는 것이 좋음)
+
+- 키바나가 제공하는 주요 지표들
+  - Search Rate: 전체 샤드에서 실행되는 초당 검색 요청 수
+  - Search Latency: 검색 요청을 처리하기 위한 평균 대기시간
+  - Indexing Rate: 모든 샤드에서 인덱싱 처리가 이뤄지고 있는 초당 문서 수
+  - Indexing Latency: 인덱싱 처리를 위한 평균 대기시간
